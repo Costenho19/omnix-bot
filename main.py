@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 OMNIX Bot Universal - SISTEMA RESTAURADO COMO ESTA MAÑANA + VOZ
@@ -511,16 +512,26 @@ def run_flask_server():
 
 def main():
     """Función principal"""
-    # Detectar entorno
-    is_render = os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')
+    # Detectar entorno automáticamente - SIEMPRE ejecutar bot
+    # Harold quiere que funcione tanto en Render como en Replit
+    is_production = True  # Forzar modo producción para que siempre ejecute el bot
     
-    if is_render:
-        print("🌐 EJECUTANDO EN RENDER - Bot + Flask")
-        # En Render: Flask en background, Telegram en main
+    print(f"🔍 DETECTANDO ENTORNO:")
+    print(f"   RENDER: {os.environ.get('RENDER')}")
+    print(f"   RENDER_SERVICE_ID: {os.environ.get('RENDER_SERVICE_ID')}")
+    print(f"   REPLIT_DEPLOYMENT: {os.environ.get('REPLIT_DEPLOYMENT')}")
+    print(f"   PORT: {os.environ.get('PORT')}")
+    print(f"   HOSTNAME: {os.environ.get('HOSTNAME')}")
+    print(f"   is_production: {is_production}")
+    
+    if is_production:
+        print("🌐 EJECUTANDO EN PRODUCCIÓN - Bot + Flask")
+        # Producción: Flask en background, Telegram en main
         flask_thread = threading.Thread(target=run_flask_server, daemon=True)
         flask_thread.start()
-        # Pequeña pausa para evitar conflictos
-        time.sleep(2)
+        # Pausa para evitar conflictos
+        import time
+        time.sleep(3)
         run_telegram_bot()
     else:
         print("🏠 EJECUTANDO LOCAL - Solo Flask")
