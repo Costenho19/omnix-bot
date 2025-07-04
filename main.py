@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 OMNIX Bot Universal - SISTEMA RESTAURADO COMO ESTA MAÑANA + VOZ
@@ -14,6 +13,7 @@ import asyncio
 import logging
 import tempfile
 import threading
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
@@ -519,6 +519,8 @@ def main():
         # En Render: Flask en background, Telegram en main
         flask_thread = threading.Thread(target=run_flask_server, daemon=True)
         flask_thread.start()
+        # Pequeña pausa para evitar conflictos
+        time.sleep(2)
         run_telegram_bot()
     else:
         print("🏠 EJECUTANDO LOCAL - Solo Flask")
