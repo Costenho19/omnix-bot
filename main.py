@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-OMNIX Bot Universal - Sistema Funcional para Deployment
-Bot Telegram completo con IA híbrida y trading crypto
+OMNIX Bot Universal - Sistema Funcional para Deployment FIXED
+Bot Telegram completo con IA híbrida y trading crypto - Gemini API actualizada
 """
 
 import os
@@ -15,6 +15,9 @@ import yfinance as yf
 # Telegram imports
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+
+# Flask for health check
+from flask import Flask, jsonify
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -119,17 +122,18 @@ class OmnixBot:
             return {'balance_usd': 10000.0, 'bitcoin': 0.0, 'ethereum': 0.0, 'solana': 0.0}
 
     async def ask_gemini(self, question, user_id, username):
-        """Ask Gemini AI"""
+        """Ask Gemini AI with updated API"""
         try:
             if not GEMINI_API_KEY:
                 return self.get_smart_response(question, username)
-                
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+            
+            # Updated API endpoint with correct model
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
             
             payload = {
                 "contents": [{
                     "parts": [{
-                        "text": f"Eres un experto en criptomonedas. Responde en español de forma natural y profesional. Máximo 200 palabras. Pregunta: {question}"
+                        "text": f"Eres OMNIX, un experto en criptomonedas y trading. Responde en español de forma natural y profesional. Máximo 200 palabras. Pregunta: {question}"
                     }]
                 }]
             }
@@ -139,13 +143,14 @@ class OmnixBot:
             if response.status_code == 200:
                 data = response.json()
                 if 'candidates' in data and data['candidates']:
-                    answer = data['candidates'][0]['parts'][0]['text']
+                    answer = data['candidates'][0]['content']['parts'][0]['text']
                     self.save_conversation(user_id, username, question, answer)
                     return answer
             
             return self.get_smart_response(question, username)
             
-        except:
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
             return self.get_smart_response(question, username)
 
     def get_smart_response(self, question, username):
@@ -265,7 +270,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     thinking_msg = await update.message.reply_text("🧠 Analizando...")
     
     try:
-        # Get response
+        # Get response using updated Gemini API
         answer = await bot.ask_gemini(question, user_id, username)
         await thinking_msg.edit_text(answer)
         
@@ -282,18 +287,31 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 💰 Balance USD: ${portfolio['balance_usd']:,.2f}
 ₿ Bitcoin: {portfolio['bitcoin']:.6f} BTC
-⟠ Ethereum: {portfolio['ethereum']:.6f} ETH  
+⟠ Ethereum: {portfolio['ethereum']:.6f} ETH
 ◎ Solana: {portfolio['solana']:.6f} SOL
 
-🚀 Portfolio virtual listo para trading!"""
-
+🚀 ¡Portfolio listo para trading!"""
+    
     await update.message.reply_text(text)
+
+# Flask app for health check
+app = Flask(__name__)
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy", "service": "omnix-bot"})
+
+@app.route('/')
+def home():
+    return jsonify({
+        "service": "OMNIX Bot",
+        "status": "running",
+        "message": "Bot funcionando globalmente 24/7"
+    })
 
 def main():
     """Main function"""
-    print("🚀 Iniciando OMNIX Bot...")
-    
-    # Initialize
+    # Initialize database
     init_database()
     
     # Create application
@@ -306,9 +324,19 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Run
-    print("✅ OMNIX Bot activo y funcionando")
-    application.run_polling(drop_pending_updates=True)
+    # Start bot
+    logger.info("Starting OMNIX Bot...")
+    application.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    # For Render deployment
+    port = int(os.environ.get("PORT", 5000))
+    
+    # Start Flask in background thread
+    import threading
+    flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=port))
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # Start Telegram bot
     main()
